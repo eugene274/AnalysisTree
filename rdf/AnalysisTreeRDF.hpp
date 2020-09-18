@@ -1,0 +1,13 @@
+//
+// Created by eugene on 18/09/2020.
+//
+
+#ifndef ANALYSISTREE_RDF_ANALYSISTREERDF_HPP
+#define ANALYSISTREE_RDF_ANALYSISTREERDF_HPP
+
+namespace AnalysisTree::RDF {
+
+
+}
+
+#endif//ANALYSISTREE_RDF_ANALYSISTREERDF_HPP

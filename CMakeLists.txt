@@ -50,6 +50,7 @@ include(${ROOT_USE_FILE})
 
 add_subdirectory(core)
 add_subdirectory(infra)
+add_subdirectory(rdf)
 
 if(AnalysisTree_BUILD_EXAMPLES)
     add_subdirectory(examples)
