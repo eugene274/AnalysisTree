@@ -19,7 +19,7 @@ class DataHeader;
  *  T *data - pointer to the data associated with branch
  *
  *  GetValue(channel)
- *  SetValue(channel)
+ *  SetValue(channel, value)
  *  Partially implemented in BranchView, unlike there only one type of variable is planned
  *  with direct interaction to underlying object
  *
