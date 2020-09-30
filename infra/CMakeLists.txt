@@ -18,7 +18,7 @@ message(STATUS "CMAKE_PROJECT_NAME ${CMAKE_PROJECT_NAME}")
 
 
 string(REPLACE ".cpp" ".hpp" HEADERS "${SOURCES}")
-list(APPEND HEADERS "VariantMagic.hpp")
+list(APPEND HEADERS VariantMagic.hpp EntityTraits.hpp)
 
 include_directories(${CMAKE_SOURCE_DIR}/core ${CMAKE_CURRENT_SOURCE_DIR})
 add_library(AnalysisTreeInfra SHARED ${SOURCES} G__AnalysisTreeInfra.cxx)
@@ -41,9 +41,8 @@ endforeach()
 target_include_directories(AnalysisTreeInfra
         PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
         PUBLIC
-            $<INSTALL_INTERFACE:include>
-        INTERFACE
-            $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
+        $<INSTALL_INTERFACE:include>
         )
 
 if(AnalysisTree_BUILD_TESTS)
