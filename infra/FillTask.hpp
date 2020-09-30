@@ -1,7 +1,7 @@
 #ifndef ANALYSISTREE_FILLTASK_H_
 #define ANALYSISTREE_FILLTASK_H_
 
-#include "Configuration.hpp"
+#include <AnalysisTree/Configuration.hpp>
 
 class TChain;
 class TTree;
@@ -11,6 +11,21 @@ namespace AnalysisTree {
 
 class Configuration;
 class DataHeader;
+
+/*
+ * Notes on variable management
+ *
+ * Variable:
+ *  T *data - pointer to the data associated with branch
+ *
+ *  GetValue(channel)
+ *  SetValue(channel)
+ *  Partially implemented in BranchView, unlike there only one type of variable is planned
+ *  with direct interaction to underlying object
+ *
+ *  New variable manager is responsible for issuing variables by branch name / field name
+ *  It keeps pointer to the tree and configuration object
+ */
 
 class FillTask {
 
