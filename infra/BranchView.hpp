@@ -18,6 +18,7 @@
 #include <AnalysisTree/BranchConfig.hpp>
 #include <AnalysisTree/Detector.hpp>
 #include "EntityTraits.hpp"
+#include "FunctionTraits.hpp"
 
 namespace AnalysisTree {
 
@@ -285,24 +286,6 @@ namespace BranchViewAction {
 namespace Details {
 
 template<typename T>
-struct FunctionTraits : FunctionTraits<decltype(&T::operator())> {};
-template<typename R, typename... Args>
-struct FunctionTraits<R (*)(Args...)> {
-  constexpr static size_t Arity = sizeof...(Args);
-  typedef R ret_type;
-};
-template<typename R, typename C, typename... Args>
-struct FunctionTraits<R (C::*)(Args...)> {
-  constexpr static size_t Arity = sizeof...(Args);
-  typedef R ret_type;
-};
-template<typename R, typename C, typename... Args>
-struct FunctionTraits<R (C::*)(Args...) const> {
-  constexpr static size_t Arity = sizeof...(Args);
-  typedef R ret_type;
-};
-
-template<typename T>
 std::string GetTypeString() { return std::string(typeid(T).name()); }
 
 template<>
@@ -322,8 +305,8 @@ GetMissingArgs(const std::vector<std::string>& args, const std::vector<std::stri
 
 template<typename Func>
 class LambdaFieldRef : public IFieldRef {
-  static constexpr size_t function_arity = Details::FunctionTraits<Func>::Arity;
-  typedef typename Details::FunctionTraits<Func>::ret_type function_ret_type;
+  static constexpr size_t function_arity = AnalysisTree::Details::FunctionTraits<Func>::Arity;
+  typedef typename AnalysisTree::Details::FunctionTraits<Func>::ret_type function_ret_type;
 
  public:
   LambdaFieldRef(Func lambda, std::vector<FieldPtr> lambda_args) : lambda_(std::move(lambda)), lambda_args_(std::move(lambda_args)) {
@@ -455,7 +438,7 @@ IAction* NewDefineAction(const std::string& field_name, std::initializer_list<st
 
 template<typename Function>
 class BranchViewFilterAction : public IAction {
-  typedef typename Details::FunctionTraits<Function>::ret_type function_ret_type;
+  typedef typename AnalysisTree::Details::FunctionTraits<Function>::ret_type function_ret_type;
 
   class FilterActionResultImpl : public IBranchView {
     struct ChannelsHolder {
