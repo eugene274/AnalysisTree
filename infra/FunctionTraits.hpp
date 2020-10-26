@@ -24,16 +24,25 @@ template<typename R, typename... Args>
 struct FunctionTraits<R (*)(Args...)> {
   constexpr static size_t Arity = sizeof...(Args);
   typedef R ret_type;
+
+  template <size_t IArg>
+  using arg_type = std::tuple_element_t<IArg, std::tuple<Args...>>;
 };
 template<typename R, typename C, typename... Args>
 struct FunctionTraits<R (C::*)(Args...)> {
   constexpr static size_t Arity = sizeof...(Args);
   typedef R ret_type;
+
+  template <size_t IArg>
+  using arg_type = std::tuple_element_t<IArg, std::tuple<Args...>>;
 };
 template<typename R, typename C, typename... Args>
 struct FunctionTraits<R (C::*)(Args...) const> {
   constexpr static size_t Arity = sizeof...(Args);
   typedef R ret_type;
+
+  template <size_t IArg>
+  using arg_type = std::tuple_element_t<IArg, std::tuple<Args...>>;
 };
 
 }

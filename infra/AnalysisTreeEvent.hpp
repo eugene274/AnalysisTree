@@ -34,7 +34,7 @@ class IBaseVariable {
 
   template<typename T>
   T
-  GetValueT(size_t i_channel) {
+  GetValueT(size_t i_channel) const {
     if constexpr (std::is_same_v<double,T>) {
       return GetValueDouble(i_channel);
     } else if constexpr (std::is_same_v<int,T>) {
@@ -112,6 +112,11 @@ template<typename Function>
 class FunctionVariable : public IBaseVariable {
   using Traits = AnalysisTree::Details::FunctionTraits<Function>;
 
+  template<size_t I>
+  using arg_rvalue_type = std::decay_t<typename Traits::template arg_type<I>>;
+
+  using ret_type = typename Traits::ret_type;
+
  public:
   FunctionVariable(const IBranch* ptr, Function function, std::vector<ReadOnlyVarProxy> args) : branch_ptr_(ptr),
                                                                                                 function_(std::move(function)),
@@ -119,15 +124,29 @@ class FunctionVariable : public IBaseVariable {
   [[nodiscard]] size_t GetNChannels() const final {
     return branch_ptr_->GetNChannels();
   }
+  /* one of these functions will be implemented with no cast */
   [[nodiscard]] double GetValueDouble(size_t i_channel) const final {
+    return GetValueImpl(i_channel, std::make_index_sequence<Traits::Arity>());
+  }
+  [[nodiscard]] int GetValueInt(size_t i_channel) const final {
+    return GetValueImpl(i_channel, std::make_index_sequence<Traits::Arity>());
+  }
+  [[nodiscard]] bool GetValueBool(size_t i_channel) const final {
     return GetValueImpl(i_channel, std::make_index_sequence<Traits::Arity>());
   }
 
  private:
   template<size_t... IArgs>
-  double GetValueImpl([[maybe_unused]] size_t i_channel, std::index_sequence<IArgs...>) const {
-    return function_(function_args_[IArgs].GetValueDouble(i_channel)...);
+  ret_type GetValueImpl([[maybe_unused]] size_t i_channel, std::index_sequence<IArgs...>) const {
+    return function_(GetArgValue<IArgs>(i_channel)...);
   }
+
+  template<size_t I>
+  arg_rvalue_type<I>
+  GetArgValue(size_t i_channel) const {
+    return function_args_[I].template GetValueT<arg_rvalue_type<I>>(i_channel);
+  }
+
   const IBranch* branch_ptr_;
   Function function_;
   std::vector<ReadOnlyVarProxy> function_args_;
