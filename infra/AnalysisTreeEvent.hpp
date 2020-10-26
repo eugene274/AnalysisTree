@@ -26,10 +26,28 @@ class variable_does_not_exist_exception : public std::exception {};
 class IBaseVariable {
  public:
   [[nodiscard]] virtual size_t GetNChannels() const = 0;
-  [[nodiscard]] virtual double GetValue(size_t i_channel) const = 0;
+  [[nodiscard]] virtual double GetValueDouble(size_t i_channel) const = 0;
+
+  /* override to avoid casts */
+  [[nodiscard]] virtual int GetValueInt(size_t i_channel) const { return int(GetValueDouble(i_channel)); }
+  [[nodiscard]] virtual bool GetValueBool(size_t i_channel) const { return bool(GetValueDouble(i_channel)); }
+
+  template<typename T>
+  T
+  GetValueT(size_t i_channel) {
+    if constexpr (std::is_same_v<double,T>) {
+      return GetValueDouble(i_channel);
+    } else if constexpr (std::is_same_v<int,T>) {
+      return GetValueInt(i_channel);
+    } else if constexpr (std::is_same_v<bool,T>) {
+      return GetValueBool(i_channel);
+    } else {
+      return T(GetValueDouble(i_channel));
+    }
+  }
 
   double operator[](size_t i_channel) const {
-    return GetValue(i_channel);
+    return GetValueDouble(i_channel);
   }
 };
 
@@ -40,8 +58,8 @@ class ReadOnlyVarProxy : public IBaseVariable {
   [[nodiscard]] size_t GetNChannels() const override {
     return ptr_->GetNChannels();
   }
-  [[nodiscard]] double GetValue(size_t i_channel) const override {
-    return ptr_->GetValue(i_channel);
+  [[nodiscard]] double GetValueDouble(size_t i_channel) const override {
+    return ptr_->GetValueDouble(i_channel);
   }
 
  private:
@@ -101,14 +119,14 @@ class FunctionVariable : public IBaseVariable {
   [[nodiscard]] size_t GetNChannels() const final {
     return branch_ptr_->GetNChannels();
   }
-  [[nodiscard]] double GetValue(size_t i_channel) const final {
+  [[nodiscard]] double GetValueDouble(size_t i_channel) const final {
     return GetValueImpl(i_channel, std::make_index_sequence<Traits::Arity>());
   }
 
  private:
   template<size_t... IArgs>
   double GetValueImpl([[maybe_unused]] size_t i_channel, std::index_sequence<IArgs...>) const {
-    return function_(function_args_[IArgs].GetValue(i_channel)...);
+    return function_(function_args_[IArgs].GetValueDouble(i_channel)...);
   }
   const IBranch* branch_ptr_;
   Function function_;
@@ -145,7 +163,7 @@ class InMemoryVariable : public IMutableVariable {
   [[nodiscard]] size_t GetNChannels() const final {
     return branch_ptr_->GetNChannels();
   }
-  [[nodiscard]] double GetValue(size_t i_channel) const final {
+  [[nodiscard]] double GetValueDouble(size_t i_channel) const final {
     return val_[i_channel];
   }
   void Init() {
