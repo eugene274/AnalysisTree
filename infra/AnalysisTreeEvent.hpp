@@ -61,6 +61,12 @@ class ReadOnlyVarProxy : public IBaseVariable {
   [[nodiscard]] double GetValueDouble(size_t i_channel) const override {
     return ptr_->GetValueDouble(i_channel);
   }
+  [[nodiscard]] int GetValueInt(size_t i_channel) const override {
+    return ptr_->GetValueInt(i_channel);
+  }
+  [[nodiscard]] bool GetValueBool(size_t i_channel) const override {
+    return ptr_->GetValueBool(i_channel);
+  }
 
  private:
   std::shared_ptr<const IBaseVariable> ptr_;
@@ -124,7 +130,7 @@ class FunctionVariable : public IBaseVariable {
   [[nodiscard]] size_t GetNChannels() const final {
     return branch_ptr_->GetNChannels();
   }
-  /* one of these functions will be implemented with no cast */
+  /* one of these functions will be implemented with no return-type cast */
   [[nodiscard]] double GetValueDouble(size_t i_channel) const final {
     return GetValueImpl(i_channel, std::make_index_sequence<Traits::Arity>());
   }
@@ -261,6 +267,7 @@ class AnalysisTreeEvent {
       [[nodiscard]] size_t GetNChannels() const override {
         return branch_->GetNChannels();
       }
+      /* one of these functions will be implemented with no return-type cast */
       [[nodiscard]] double GetValueDouble(size_t i_channel) const override {
         return GetValueImpl(i_channel);
       }
