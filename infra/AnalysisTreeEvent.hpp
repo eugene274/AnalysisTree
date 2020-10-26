@@ -83,7 +83,7 @@ class IBranch {
 
  protected:
   virtual std::vector<std::string> GetVariableNamesImpl() const = 0;
-  virtual ReadOnlyVarProxy GetVariableImpl(std::string_view name) = 0;
+  virtual ReadOnlyVarProxy GetVariableImpl(std::string_view name) const = 0;
 
  private:
   std::vector<std::string> transient_var_names_;
@@ -196,7 +196,7 @@ class VirtualBranch : public IBranch {
   [[nodiscard]] std::vector<std::string> GetVariableNamesImpl() const override {
     return variable_names_;
   }
-  ReadOnlyVarProxy GetVariableImpl(std::string_view name) override {
+  ReadOnlyVarProxy GetVariableImpl(std::string_view name) const override {
     return ReadOnlyVarProxy(variables_.at(std::string(name)));
   }
 
@@ -233,7 +233,7 @@ class AnalysisTreeEvent {
     std::vector<std::string> GetVariableNamesImpl() const final {
       return {};
     }
-    ReadOnlyVarProxy GetVariableImpl(std::string_view) final {
+    ReadOnlyVarProxy GetVariableImpl(std::string_view) const final {
       throw std::runtime_error("Not yet implemented");
     }
 
