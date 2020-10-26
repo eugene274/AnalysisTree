@@ -36,7 +36,7 @@ class IBaseVariable {
 class ReadOnlyVarProxy : public IBaseVariable {
  public:
   ReadOnlyVarProxy() = default;
-  explicit ReadOnlyVarProxy(std::shared_ptr<IBaseVariable> ptr) : ptr_(std::move(ptr)) {}
+  explicit ReadOnlyVarProxy(std::shared_ptr<const IBaseVariable> ptr) : ptr_(std::move(ptr)) {}
   [[nodiscard]] size_t GetNChannels() const override {
     return ptr_->GetNChannels();
   }
@@ -45,7 +45,7 @@ class ReadOnlyVarProxy : public IBaseVariable {
   }
 
  private:
-  std::shared_ptr<IBaseVariable> ptr_;
+  std::shared_ptr<const IBaseVariable> ptr_;
 };
 
 class IMutableVariable : public IBaseVariable {
@@ -107,12 +107,12 @@ class FunctionVariable : public IBaseVariable {
 
  private:
   template<size_t... IArgs>
-  double GetValueImpl(size_t i_channel, std::index_sequence<IArgs...>) const {
+  double GetValueImpl([[maybe_unused]] size_t i_channel, std::index_sequence<IArgs...>) const {
     return function_(function_args_[IArgs].GetValue(i_channel)...);
   }
+  const IBranch* branch_ptr_;
   Function function_;
   std::vector<ReadOnlyVarProxy> function_args_;
-  const IBranch* branch_ptr_;
 };
 
 template<typename Function>
@@ -233,7 +233,7 @@ class AnalysisTreeEvent {
     std::vector<std::string> GetVariableNamesImpl() const final {
       return {};
     }
-    ReadOnlyVarProxy GetVariableImpl(std::string_view name) final {
+    ReadOnlyVarProxy GetVariableImpl(std::string_view) final {
       throw std::runtime_error("Not yet implemented");
     }
 
