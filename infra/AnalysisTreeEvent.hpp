@@ -100,8 +100,8 @@ class IBranch {
   [[nodiscard]] virtual size_t GetNChannels() const = 0;
 
  protected:
-  virtual std::vector<std::string> GetVariableNamesImpl() const = 0;
-  virtual ReadOnlyVarProxy GetVariableImpl(std::string_view name) const = 0;
+  [[nodiscard]] virtual std::vector<std::string> GetVariableNamesImpl() const = 0;
+  [[nodiscard]] virtual ReadOnlyVarProxy GetVariableImpl(std::string_view name) const = 0;
 
  private:
   std::vector<std::string> transient_var_names_;
@@ -254,6 +254,35 @@ class AnalysisTreeEvent {
   class AnalysisTreeBranchImpl : public IBranch {
     using Traits = Details::EntityTraits<Entity>;
 
+    template<typename T>
+    class AnalysisTreeFieldImpl : public IBaseVariable {
+     public:
+      AnalysisTreeFieldImpl(const IBranch* branch, Entity* data, short field_id) : branch_(branch), data_(data), field_id_(field_id) {}
+      [[nodiscard]] size_t GetNChannels() const override {
+        return branch_->GetNChannels();
+      }
+      [[nodiscard]] double GetValueDouble(size_t i_channel) const override {
+        return GetValueImpl(i_channel);
+      }
+      [[nodiscard]] int GetValueInt(size_t i_channel) const override {
+        return GetValueImpl(i_channel);
+      }
+      [[nodiscard]] bool GetValueBool(size_t i_channel) const override {
+        return GetValueImpl(i_channel);
+      }
+
+     private:
+      T GetValueImpl(size_t i_channel) const {
+        auto channel = Traits::GetChannel(*data_, i_channel);
+        return channel.template GetField<T>(field_id_);
+      }
+
+      const IBranch* branch_; /// non-owing pointer
+      Entity *data_; /// also non-owing pointer
+      short int field_id_;
+    };
+
+
    public:
     explicit AnalysisTreeBranchImpl(BranchConfig config) : config_(std::move(config)) {
       InitFields();
@@ -267,16 +296,33 @@ class AnalysisTreeEvent {
     }
 
    protected:
-    std::vector<std::string> GetVariableNamesImpl() const final {
-      return {};
+    [[nodiscard]] std::vector<std::string> GetVariableNamesImpl() const final {
+      return variable_names_;
     }
-    ReadOnlyVarProxy GetVariableImpl(std::string_view) const final {
-      throw std::runtime_error("Not yet implemented");
+    [[nodiscard]] ReadOnlyVarProxy GetVariableImpl(std::string_view name) const final {
+      return variables_.at(std::string(name));
     }
 
    private:
     void InitFields() {
+      InitFieldsT<int>();
+      InitFieldsT<float>();
+      InitFieldsT<bool>();
     }
+
+    template<typename T>
+    void InitFieldsT() {
+      auto field_map = config_.GetMap<T>();
+      for (auto &entry : field_map) {
+        std::string field_name = entry.first;
+        short int field_id = entry.second;
+        variables_.emplace(field_name, std::make_shared<AnalysisTreeFieldImpl<T>>(this, entity_, field_id));
+        variable_names_.emplace_back(field_name);
+      }
+    }
+
+    std::vector<std::string> variable_names_;
+    std::map<std::string, ReadOnlyVarProxy> variables_;
 
     BranchConfig config_;
     Entity* entity_{new Entity};
