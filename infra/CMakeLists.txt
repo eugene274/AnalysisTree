@@ -47,7 +47,7 @@ target_include_directories(AnalysisTreeInfra
 
 if(AnalysisTree_BUILD_TESTS)
     set(TEST_SOURCES
-            BranchView.test.cpp BranchReader.test.cpp)
+            BranchView.test.cpp BranchReader.test.cpp AnalysisTreeEvent.test.cpp)
 
     add_executable(AnalysisTreeInfra_UnitTests ${TEST_SOURCES})
     target_link_libraries(AnalysisTreeInfra_UnitTests PRIVATE AnalysisTreeInfra gtest_main)
