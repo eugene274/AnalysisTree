@@ -24,7 +24,7 @@ class Variable {
   Variable& operator=(const Variable&) = default;
   ~Variable() = default;
 
-  Variable(std::string name) : name_(std::move(name)) {
+  explicit Variable(std::string name) : name_(std::move(name)) {
     fields_.emplace_back(Field(name_));
   };
 

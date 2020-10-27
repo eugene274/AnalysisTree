@@ -33,13 +33,12 @@ class IBaseVariable {
   [[nodiscard]] virtual bool GetValueBool(size_t i_channel) const { return bool(GetValueDouble(i_channel)); }
 
   template<typename T>
-  T
-  GetValueT(size_t i_channel) const {
-    if constexpr (std::is_same_v<double,T>) {
+  T GetValueT(size_t i_channel) const {
+    if constexpr (std::is_same_v<double, T>) {
       return GetValueDouble(i_channel);
-    } else if constexpr (std::is_same_v<int,T>) {
+    } else if constexpr (std::is_same_v<int, T>) {
       return GetValueInt(i_channel);
-    } else if constexpr (std::is_same_v<bool,T>) {
+    } else if constexpr (std::is_same_v<bool, T>) {
       return GetValueBool(i_channel);
     } else {
       return T(GetValueDouble(i_channel));
@@ -54,7 +53,7 @@ class IBaseVariable {
 class ReadOnlyVarProxy : public IBaseVariable {
  public:
   ReadOnlyVarProxy() = default;
-  explicit ReadOnlyVarProxy(std::shared_ptr<const IBaseVariable> ptr) : ptr_(std::move(ptr)) {}
+  ReadOnlyVarProxy(std::shared_ptr<const IBaseVariable> ptr) : ptr_(std::move(ptr)) {}
   [[nodiscard]] size_t GetNChannels() const override {
     return ptr_->GetNChannels();
   }
@@ -84,17 +83,10 @@ class IBranch {
     return std::find(std::begin(variable_names), std::end(variable_names), name) != std::end(variable_names);
   }
   [[nodiscard]] std::vector<std::string> GetVariableNames() const {
-    std::vector<std::string> result;
-    std::copy(std::begin(transient_var_names_), std::end(transient_var_names_), std::back_inserter(result));
-    auto impl_variables = GetVariableNamesImpl();
-    std::copy(std::begin(impl_variables), std::end(impl_variables), std::back_inserter(result));
-    return result;
+    return var_names_;
   }
   ReadOnlyVarProxy GetVariable(std::string_view variable_name) {
-    if (transient_variables_.find(std::string(variable_name)) != transient_variables_.end()) {
-      return transient_variables_[std::string(variable_name)];
-    }
-    return ReadOnlyVarProxy(GetVariableImpl(variable_name));
+    return variables_.at(std::string(variable_name));
   };
   ReadOnlyVarProxy operator[](std::string_view variable_name) {
     return GetVariable(variable_name);
@@ -106,12 +98,18 @@ class IBranch {
   [[nodiscard]] virtual size_t GetNChannels() const = 0;
 
  protected:
-  [[nodiscard]] virtual std::vector<std::string> GetVariableNamesImpl() const = 0;
-  [[nodiscard]] virtual ReadOnlyVarProxy GetVariableImpl(std::string_view name) const = 0;
+  ReadOnlyVarProxy RegisterVariable(std::string_view name, const ReadOnlyVarProxy& var) {
+    if (HasVariable(name)) {
+      throw variable_exists_exception();
+    }
+    variables_.emplace(name, var);
+    var_names_.emplace_back(name);
+    return var;
+  }
 
  private:
-  std::vector<std::string> transient_var_names_;
-  std::map<std::string, ReadOnlyVarProxy> transient_variables_;
+  std::vector<std::string> var_names_;
+  std::map<std::string, ReadOnlyVarProxy> variables_;
 };
 
 template<typename Function>
@@ -160,21 +158,12 @@ class FunctionVariable : public IBaseVariable {
 
 template<typename Function>
 ReadOnlyVarProxy IBranch::Define(std::string_view variable_name, Function&& function, const std::vector<std::string>& arg_names) {
-  if (HasVariable(variable_name)) {
-    throw variable_exists_exception();
-  }
   std::vector<ReadOnlyVarProxy> args;
   std::transform(std::begin(arg_names), std::end(arg_names),
                  std::back_inserter(args),
                  [this](const std::string& arg_name) { return GetVariable(arg_name); });
-  auto emplace_result = transient_variables_.emplace(variable_name, std::make_shared<FunctionVariable<Function>>(this, std::forward<Function>(function), args));
-  if (emplace_result.second) {
-    transient_var_names_.emplace_back(variable_name);
-    return emplace_result.first->second;
-  }
-
-  assert(false);
-  __builtin_unreachable();
+  auto new_variable = std::make_shared<FunctionVariable<Function>>(this, std::forward<Function>(function), args);
+  return RegisterVariable(variable_name, ReadOnlyVarProxy(new_variable));
 }
 
 using BranchPtr = std::shared_ptr<IBranch>;
@@ -219,12 +208,9 @@ class VirtualBranch : public IBranch {
   }
 
   std::shared_ptr<InMemoryVariable> AddVariable(std::string_view variable_name) {
-    if (HasVariable(variable_name)) {
-      throw variable_exists_exception();
-    }
-    auto emplace_result = variables_.emplace(variable_name, std::make_shared<InMemoryVariable>(this));
-    variable_names_.emplace_back(variable_name);
-    return emplace_result.first->second;
+    auto new_variable = std::make_shared<InMemoryVariable>(this);
+    RegisterVariable(variable_name, ReadOnlyVarProxy(new_variable));
+    return new_variable;
   }
 
   void SetNChannels(std::size_t new_size) {
@@ -235,14 +221,6 @@ class VirtualBranch : public IBranch {
     return n_channels;
   }
 
- protected:
-  [[nodiscard]] std::vector<std::string> GetVariableNamesImpl() const override {
-    return variable_names_;
-  }
-  ReadOnlyVarProxy GetVariableImpl(std::string_view name) const override {
-    return ReadOnlyVarProxy(variables_.at(std::string(name)));
-  }
-
  public:
   VirtualBranch() = default;
   VirtualBranch(const VirtualBranch&) = default;
@@ -250,8 +228,6 @@ class VirtualBranch : public IBranch {
 
  private:
   size_t n_channels{0};
-  std::vector<std::string> variable_names_;
-  std::map<std::string, std::shared_ptr<InMemoryVariable>> variables_;
 };
 
 class AnalysisTreeEvent {
@@ -284,11 +260,10 @@ class AnalysisTreeEvent {
         return channel.template GetField<T>(field_id_);
       }
 
-      const IBranch* branch_; /// non-owing pointer
-      Entity *data_; /// also non-owing pointer
+      const IBranch* branch_;/// non-owing pointer
+      Entity* data_;         /// also non-owing pointer
       short int field_id_;
     };
-
 
    public:
     explicit AnalysisTreeBranchImpl(BranchConfig config) : config_(std::move(config)) {
@@ -302,14 +277,6 @@ class AnalysisTreeEvent {
       br->SetAddress(&entity_);
     }
 
-   protected:
-    [[nodiscard]] std::vector<std::string> GetVariableNamesImpl() const final {
-      return variable_names_;
-    }
-    [[nodiscard]] ReadOnlyVarProxy GetVariableImpl(std::string_view name) const final {
-      return variables_.at(std::string(name));
-    }
-
    private:
     void InitFields() {
       InitFieldsT<int>();
@@ -320,16 +287,12 @@ class AnalysisTreeEvent {
     template<typename T>
     void InitFieldsT() {
       auto field_map = config_.GetMap<T>();
-      for (auto &entry : field_map) {
+      for (auto& entry : field_map) {
         std::string field_name = entry.first;
         short int field_id = entry.second;
-        variables_.emplace(field_name, std::make_shared<AnalysisTreeFieldImpl<T>>(this, entity_, field_id));
-        variable_names_.emplace_back(field_name);
+        RegisterVariable(field_name, ReadOnlyVarProxy(std::make_shared<AnalysisTreeFieldImpl<T>>(this, entity_, field_id)));
       }
     }
-
-    std::vector<std::string> variable_names_;
-    std::map<std::string, ReadOnlyVarProxy> variables_;
 
     BranchConfig config_;
     Entity* entity_{new Entity};
