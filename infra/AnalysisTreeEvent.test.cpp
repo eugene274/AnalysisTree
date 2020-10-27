@@ -58,6 +58,10 @@ TEST(AnalysisTreeEvent, AnalysisTreeEvent) {
   auto at_event = AnalysisTreeEvent::FromDirectory(&f);
   auto tree = at_event.GetInputTree();
 
+  for (const auto& bname : at_event.GetBranches()) {
+    at_event[bname]->Print(std::cout);
+  }
+
   for (Long64_t iE = 0l; iE < 10; ++iE) {
     EXPECT_NO_THROW(tree->GetEntry(iE));
   }

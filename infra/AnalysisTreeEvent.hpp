@@ -21,7 +21,6 @@
 namespace AnalysisTree {
 
 class variable_exists_exception : public std::exception {};
-class variable_does_not_exist_exception : public std::exception {};
 
 class IBaseVariable {
  public:
@@ -78,6 +77,13 @@ class IMutableVariable : public IBaseVariable {
 
 class IBranch {
  public:
+  const std::string& GetBranchName() const {
+    return branch_name_;
+  }
+  void SetBranchName(const std::string& BranchName) {
+    branch_name_ = BranchName;
+  }
+
   [[nodiscard]] bool HasVariable(std::string_view name) const {
     auto variable_names = GetVariableNames();
     return std::find(std::begin(variable_names), std::end(variable_names), name) != std::end(variable_names);
@@ -95,10 +101,18 @@ class IBranch {
   template<typename Function>
   ReadOnlyVarProxy Define(std::string_view variable_name, Function&& function, const std::vector<std::string>& arg_names);
 
+  virtual void Print(std::ostream &os) const {
+    using std::endl;
+    os << GetBranchName() << " contents:" << endl;
+    for (auto &f : GetVariableNames()) {
+      os << "\t" << f << endl;
+    }
+  }
+
   [[nodiscard]] virtual size_t GetNChannels() const = 0;
 
  protected:
-  ReadOnlyVarProxy RegisterVariable(std::string_view name, const ReadOnlyVarProxy& var) {
+  ReadOnlyVarProxy ExposeVariable(std::string_view name, const ReadOnlyVarProxy& var) {
     if (HasVariable(name)) {
       throw variable_exists_exception();
     }
@@ -108,6 +122,7 @@ class IBranch {
   }
 
  private:
+  std::string branch_name_;
   std::vector<std::string> var_names_;
   std::map<std::string, ReadOnlyVarProxy> variables_;
 };
@@ -163,7 +178,7 @@ ReadOnlyVarProxy IBranch::Define(std::string_view variable_name, Function&& func
                  std::back_inserter(args),
                  [this](const std::string& arg_name) { return GetVariable(arg_name); });
   auto new_variable = std::make_shared<FunctionVariable<Function>>(this, std::forward<Function>(function), args);
-  return RegisterVariable(variable_name, ReadOnlyVarProxy(new_variable));
+  return ExposeVariable(variable_name, ReadOnlyVarProxy(new_variable));
 }
 
 using BranchPtr = std::shared_ptr<IBranch>;
@@ -209,7 +224,7 @@ class VirtualBranch : public IBranch {
 
   std::shared_ptr<InMemoryVariable> AddVariable(std::string_view variable_name) {
     auto new_variable = std::make_shared<InMemoryVariable>(this);
-    RegisterVariable(variable_name, ReadOnlyVarProxy(new_variable));
+    ExposeVariable(variable_name, ReadOnlyVarProxy(new_variable));
     return new_variable;
   }
 
@@ -256,7 +271,7 @@ class AnalysisTreeEvent {
 
      private:
       T GetValueImpl(size_t i_channel) const {
-        auto channel = Traits::GetChannel(*data_, i_channel);
+        auto &channel = Traits::GetChannel(*data_, i_channel);
         return channel.template GetField<T>(field_id_);
       }
 
@@ -290,7 +305,7 @@ class AnalysisTreeEvent {
       for (auto& entry : field_map) {
         std::string field_name = entry.first;
         short int field_id = entry.second;
-        RegisterVariable(field_name, ReadOnlyVarProxy(std::make_shared<AnalysisTreeFieldImpl<T>>(this, entity_, field_id)));
+        ExposeVariable(field_name, ReadOnlyVarProxy(std::make_shared<AnalysisTreeFieldImpl<T>>(this, entity_, field_id)));
       }
     }
 
@@ -327,6 +342,7 @@ class AnalysisTreeEvent {
   void NewInputBranchT(BranchConfig branch_config, TBranch* br) {
     auto branch_name = branch_config.GetName();
     auto result = std::make_shared<AnalysisTreeBranchImpl<T>>(branch_config);
+    result->SetBranchName(branch_name);
     result->InitTreeBranch(br);
     branches_.emplace(branch_name, result);
     branch_names_.emplace_back(branch_name);
