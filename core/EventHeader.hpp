@@ -2,8 +2,11 @@
 #define ANALYSISTREE_BASEEVENTHEADER_H
 
 #include "Container.hpp"
+#include "EntityStaticInfo.hpp"
+
 #include <array>
 #include <stdexcept>
+#include <utility>
 
 class TVector3;
 
@@ -55,8 +58,19 @@ class EventHeader : public Container {
  protected:
   std::array<Floating_t, 3> vtx_pos_{{UndefValueFloat, UndefValueFloat, UndefValueFloat}};
 
+  AT_DECLARE_FIELD(VtxX, -1, float)
+  AT_DECLARE_FIELD(VtxY, -2, float)
+  AT_DECLARE_FIELD(VtxZ, -3, float)
+  AT_DECLARE_ENTITY(EventHeader,EventHeader, VtxX, VtxY, VtxZ)
+
   ClassDefOverride(EventHeader, 2)
 };
+
+
+
+
+
+
 
 }// namespace AnalysisTree
 #endif//ANALYSISTREE_BASEEVENTHEADER_H
