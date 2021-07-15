@@ -25,6 +25,15 @@ TEST(EventHeader, Basics) {
   EXPECT_FLOAT_EQ(event_header.GetVertexY(), 2.);
   EXPECT_FLOAT_EQ(event_header.GetVertexZ(), 3.);
 }
+
+TEST(EventHeader, StaticAccessors) {
+  EventHeader evh;
+  std::cout << "Entity: " << EventHeader::StaticInfo().GetEntityName() << std::endl;
+
+  EventHeader::VtxX::SetValue(evh, 0.2);
+  std::cout << EventHeader::EntityName() << std::endl;
+}
+
 }// namespace
 
 #endif//ANALYSISTREE_CORE_EVENTHEADER_TEST_HPP_
